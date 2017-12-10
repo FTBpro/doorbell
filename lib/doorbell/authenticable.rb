@@ -2,7 +2,7 @@ module Doorbell::Authenticable
   def authenticate_for entity_class
     getter_name = "current_#{entity_class.to_s.parameterize.underscore}"
     service = create_service
-    define_current_entity_getter(service, entity_class, getter_name)
+    define_current_entity_getter(entity_class, getter_name)
   rescue JWT::ExpiredSignature
     raise Doorbell::AuthenticationError, 'Token has expired'
   rescue 
@@ -48,14 +48,14 @@ module Doorbell::Authenticable
     end
   end
 
-  def define_current_entity_getter(service, entity_class, getter_name)
+  def define_current_entity_getter(entity_class, getter_name)
     unless self.respond_to?(getter_name)
       memoization_var_name = "@_#{getter_name}"
       self.class.send(:define_method, getter_name) do
         unless instance_variable_defined?(memoization_var_name)
           current =
             begin
-              service.entity_for(entity_class)
+              Doorbell::AuthService.new(token: token).entity_for(entity_class)
             rescue Doorbell.not_found_exception_class, JWT::DecodeError
               nil
             end
